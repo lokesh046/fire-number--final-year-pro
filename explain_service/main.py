@@ -4,11 +4,11 @@ from typing import Literal
 import os
 import shutil
 
-from pipeline.retrieval import retrieve
-from pipeline.prompt_builder import build_prompt
-from pipeline.ingestion import ingest_file
-from pipeline.vectordb import collection
-from pipeline.llm_client import generate_explanation
+from .pipeline.retrieval import retrieve
+from .pipeline.prompt_builder import build_prompt
+from .pipeline.ingestion import ingest_file
+from .pipeline.vectordb import collection
+from .pipeline.llm_client import generate_explanation
 
 
 app = FastAPI(title="Explain Service")

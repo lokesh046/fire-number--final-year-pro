@@ -2,7 +2,7 @@ from fastapi import FastAPI,HTTPException
 from pydantic import BaseModel, Field
 from typing import List, Dict
 
-from loan_engine import (calculate_emi,
+from .loan_engine import (calculate_emi,
 generate_amortization_schedule,
 suggest_optimal_emi,
 normalize_interest_rate

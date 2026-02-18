@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 
-from fire_engine import calculate_fire_plan
+from .fire_engine import calculate_fire_plan
 
 app = FastAPI(title="Fire Service")
 

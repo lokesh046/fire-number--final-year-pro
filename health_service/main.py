@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 
-from financial_health_score import calculate_financial_health_score
+from .financial_health_score import calculate_financial_health_score
 
 app = FastAPI(title ="Health Score Service")
 

@@ -139,6 +139,10 @@ async def generate_explanation(prompt: str):
         return _fallback_response()
 
 
+
+
+
+
 def _fallback_response():
     return {
         "summary": "AI explanation temporarily unavailable.",
