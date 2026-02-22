@@ -1,9 +1,18 @@
-conversation_memory = {}
+# chat_service/memory.py
 
+from .state import FinancialState
 
-def get_memory(session_id):
-    return conversation_memory.get(session_id, [])
+class MemoryManager:
 
+    def __init__(self):
+        self.store = {}
 
-def save_memory(session_id, messages):
-    conversation_memory[session_id] = messages[-10:]  # keep last 10
+    async def get_state(self, session_id: str):
+
+        if session_id not in self.store:
+            self.store[session_id] = FinancialState()
+
+        return self.store[session_id]
+
+    async def save_state(self, session_id: str, state):
+        self.store[session_id] = state

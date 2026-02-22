@@ -6,8 +6,8 @@ def calculate_fire_plan(
     current_savings: float,
     return_rate: float,
     inflation_rate: float,
-    has_loan: str,
-    loan_emi: float = 0,
+    has_loan: bool,
+    loan_emi: float = 0.0,
     loan_years: int = 0
 ):
     """
@@ -23,6 +23,7 @@ def calculate_fire_plan(
 
     #BASE SAVINGS 
     base_monthly_savings = monthly_income - living_expense
+
 
     if base_monthly_savings <= 0:
         return {
@@ -40,9 +41,10 @@ def calculate_fire_plan(
     while wealth < fire_number and year <= max_year_limit:
 
         year += 1
+        
 
         # Loan phase
-        if has_loan == "yes" and year <= loan_years:
+        if has_loan  and year <= loan_years:
             monthly_savings = base_monthly_savings - loan_emi
         else:
             monthly_savings = base_monthly_savings

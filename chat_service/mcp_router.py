@@ -1,12 +1,23 @@
-def route_query(message: str) -> str:
+# chat_service/mcp_router.py
 
-    message = message.lower()
+class MCPRouter:
 
-    if "fire number" in message or "retire" in message:
-        return "fire"
+    def route(self, state):
 
-    elif "strategy" in message or "emi" in message:
-        return "strategy"
+        steps = []
 
-    else:
-        return "general"
+        # FIRE required?
+        if state.fire_number is None:
+            steps.append({"tool": "calculate_fire"})
+
+        # Health score always after FIRE
+        steps.append({"tool": "calculate_health_score"})
+
+        # Loan optimizer if full loan info available
+        if state.loan_amount and state.loan_interest_rate and state.loan_years:
+            steps.append({"tool": "optimize_loan"})
+
+        return {
+            "goal": "financial_analysis",
+            "steps": steps
+        }

@@ -1,5 +1,4 @@
 from pydantic import BaseModel
-from typing import Optional, Dict, Any
 
 
 class ChatRequest(BaseModel):
@@ -7,6 +6,6 @@ class ChatRequest(BaseModel):
 
 
 class ChatResponse(BaseModel):
-    reply: str
-    tool_used: Optional[str] = None
-    tool_result: Optional[Dict[str, Any]] = None
+    state: dict
+    tools_used: list
+    tool_results: dict

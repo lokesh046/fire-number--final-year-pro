@@ -11,7 +11,7 @@ class FireInput(BaseModel):
     current_savings: float
     return_rate: float
     inflation_rate: float
-    has_loan: str
+    has_loan: bool
     loan_emi: float = 0
     loan_years: int = 0
 
