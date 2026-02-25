@@ -11,58 +11,60 @@ def calculate_fire_plan(
     loan_years: int = 0
 ):
     """
-    Calculates FIRE Number, Years to FIRE, and Final Wealth
+    Clean FIRE Calculator
+    - Real return adjusted
+    - Loan phase supported
+    - Bankruptcy detection
     """
 
-    #REAL RETURN 
     real_return_rate = ((1 + return_rate) / (1 + inflation_rate)) - 1
 
-    # FIRE NUMBER
+  
     annual_expense = living_expense * 12
-    fire_number = annual_expense * 25 #SWP - Smart withdrawl plan 
+    fire_number = annual_expense * 25
 
-    #BASE SAVINGS 
-    base_monthly_savings = monthly_income - living_expense
+    net_monthly_cashflow = monthly_income - living_expense - (loan_emi if has_loan else 0)
 
-
-    if base_monthly_savings <= 0:
+    # If negative cashflow → FIRE not possible
+    if net_monthly_cashflow <= 0:
         return {
             "fire_number": fire_number,
-            "fire_year": "Not Achievable",
-            "final_wealth": current_savings
+            "fire_year": "Not Achievable - Negative Cashflow",
+            "final_wealth": round(current_savings, 2)
         }
-
 
     wealth = current_savings
     year = 0
     max_year_limit = 100
 
-    #  FIRE SIMULATION
+    # FIRE SIMULATION LOOP
     while wealth < fire_number and year <= max_year_limit:
 
         year += 1
-        
 
-        # Loan phase
-        if has_loan  and year <= loan_years:
-            monthly_savings = base_monthly_savings - loan_emi
+        # During loan years
+        if has_loan and year <= loan_years:
+            annual_savings = net_monthly_cashflow * 12
         else:
-            monthly_savings = base_monthly_savings
-
-        annual_savings = monthly_savings * 12
+            annual_savings = (monthly_income - living_expense) * 12
 
         wealth = (wealth + annual_savings) * (1 + real_return_rate)
 
-    if year >= max_year_limit :
-        return {
-            "fire_number": fire_number,
-            "fire_year": "Beyond 100 years",
-            "final_wealth": round(wealth, 2)
-        }
+        # Bankruptcy protection
+        if wealth <= 0:
+            return {
+                "fire_number": fire_number,
+                "fire_year": "Bankrupt before FIRE",
+                "final_wealth": 0
+            }
 
-    
+    if year >= max_year_limit:
+        fire_year = "Beyond 100 years"
+    else:
+        fire_year = year
+
     return {
         "fire_number": fire_number,
-        "fire_year": year,
+        "fire_year": fire_year,
         "final_wealth": round(wealth, 2)
     }

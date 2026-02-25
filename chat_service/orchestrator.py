@@ -1,48 +1,70 @@
 # chat_service/orchestrator.py
 
-from .state import FinancialState
+from .financial_state import FinancialState
 from .financial_interpreter import FinancialInterpreter
+from .financial_sanity import FinancialSanityEngine
 from .guardrails import Guardrails
 from .planner import Planner
 from .execution_engine import ExecutionEngine
+from .explanation_engine import ExplanationEngine
 
 
 class FinancialOrchestrator:
 
     def __init__(self, llm_client):
         self.interpreter = FinancialInterpreter(llm_client)
+        self.planner = Planner(llm_client)
+        self.executor = ExecutionEngine()
+        self.explainer = ExplanationEngine(llm_client)
         self.guardrails = Guardrails()
-        self.planner = Planner()
-        self.engine = ExecutionEngine()
+        self.sanity = FinancialSanityEngine()
 
-    async def handle_request(self, message: str):
+    async def handle_request(self, message):
 
-        # 1️⃣ Extract structured data from LLM
+        # 1️⃣ Extract financial data
         extracted_data = await self.interpreter.extract(message)
 
-        print("EXTRACTED DATA:", extracted_data)
+        # 2️⃣ Create state
+        state = FinancialState()
+        state.__dict__.update(extracted_data)
+        # 🔥 Ensure default investment assumptions
+        if state.return_rate is None:
+            state.return_rate = 0.10
 
-        # 2️⃣ Convert to FinancialState
-        state = FinancialState(**extracted_data)
+        if state.inflation_rate is None:
+            state.inflation_rate = 0.06
 
-        # 3️⃣ Guardrails validation
+        # 3️⃣ Hard validation
         self.guardrails.validate(state)
 
-        # 4️⃣ Planning (decide tools)
-        tools_to_run = self.planner.create_plan(state)
+        # 4️⃣ Sanity validation
+        valid, warnings = self.sanity.validate(state)
 
-        print("TOOLS TO RUN:", tools_to_run)
+        if not valid:
+            return {
+                "error": "Invalid financial input",
+                "details": warnings
+            }
 
-        # 5️⃣ Execute tools
-        tool_results = await self.engine.execute(tools_to_run, state)
+        # 5️⃣ Tool Planning
+        tools_to_run = await self.planner.create_plan(state)
 
-        # 6️⃣ Update state safely from tool results
-        for tool_name, result in tool_results.items():
-            if isinstance(result, dict):
-                state = state.model_copy(update=result)
+        tool_results = {}
+
+        # 6️⃣ Execute Tools
+        if tools_to_run:
+            state, tool_results = await self.executor.execute_chain(
+                tools_to_run,
+                state
+            )
+
+        # 7️⃣ Explanation
+        explanation = await self.explainer.generate(state)
 
         return {
-            "state": state.model_dump(),
+            "state": state.to_dict(),
             "tools_used": tools_to_run,
-            "tool_results": tool_results
+            "tool_results": tool_results,
+            "advisor_explanation": explanation,
+            "flags": state.flags
         }
