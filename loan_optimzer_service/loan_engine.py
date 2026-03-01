@@ -5,8 +5,14 @@ def validate_loan_inputs(loan_amount, annual_interest_rate, tenure_years):
     if loan_amount <= 0:
         raise ValueError("Loan amount must be greater than 0.")
 
-    if annual_interest_rate <= 0 or annual_interest_rate > 0.5:
-        raise ValueError("Interest rate must be between 0 and 50%.")
+    # Accept both decimal (0.085) and percentage (8.5) formats
+    # Convert percentage to decimal if needed
+    rate = annual_interest_rate
+    if rate > 1:  # Likely in percentage format (e.g., 8.5%)
+        rate = rate / 100
+    
+    if rate <= 0 or rate > 1:  # Allow up to 100%
+        raise ValueError("Interest rate must be between 0 and 100%.")
 
     if tenure_years <= 0 or tenure_years > 40:
         raise ValueError("Tenure must be between 1 and 40 years.")
@@ -14,6 +20,7 @@ def validate_loan_inputs(loan_amount, annual_interest_rate, tenure_years):
 def normalize_interest_rate(rate_value, rate_type):
     """
     Converts interest rate to annual rate.
+    Accepts both decimal (0.085) and percentage (8.5) formats.
     """
 
     if rate_type == "annual":
@@ -25,9 +32,13 @@ def normalize_interest_rate(rate_value, rate_type):
     else:
         raise ValueError("rate_type must be 'annual' or 'monthly'.")
 
-    # Safety check
-    if annual_rate <= 0 or annual_rate > 0.5:
-        raise ValueError("Annual interest must be between 0% and 50%.")
+    # Convert percentage to decimal if needed (e.g., 8.5 -> 0.085)
+    if annual_rate > 1:
+        annual_rate = annual_rate / 100
+    
+    # Safety check - allow up to 100%
+    if annual_rate <= 0 or annual_rate > 1:
+        raise ValueError("Annual interest must be between 0% and 100%.")
 
     return annual_rate
 

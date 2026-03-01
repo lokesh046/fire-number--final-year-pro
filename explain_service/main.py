@@ -1,6 +1,6 @@
-from fastapi import FastAPI, UploadFile, File, Header, HTTPException
+from fastapi import FastAPI, UploadFile, File, Header, HTTPException, Depends, status
 from pydantic import BaseModel
-from typing import Literal
+from typing import Literal, Optional
 import os
 import shutil
 
@@ -9,17 +9,17 @@ from .pipeline.prompt_builder import build_prompt
 from .pipeline.ingestion import ingest_file
 from .pipeline.vectordb import collection
 from .pipeline.llm_client import generate_explanation
+from shared.services.service_auth import get_current_user, CurrentUser
 
+app = FastAPI(
+    title="Explain Service",
+    description="AI-Powered Financial Strategy Explanation Service"
+)
 
-app = FastAPI(title="Explain Service")
-
-ADMIN_API_KEY = "super_secret_key"
+ADMIN_API_KEY = os.getenv("ADMIN_API_KEY", "super_secret_key_change_me")
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-# -------------------------
-# 🔹 Request Models
-# -------------------------
 
 class ExplainRequest(BaseModel):
     context_type: Literal["loan_fire_strategy"]
@@ -30,9 +30,6 @@ class ExplainRequest(BaseModel):
     financial_health_score: float
 
 
-# -------------------------
-# 🔓 PUBLIC ENDPOINT
-# -------------------------
 class ExplainResponse(BaseModel):
     summary: str
     reasoning_points: list[str]
@@ -41,9 +38,64 @@ class ExplainResponse(BaseModel):
     confidence_score: float
 
 
-@app.post("/explain-strategy",response_model=ExplainResponse)
-async def explain_strategy(data: ExplainRequest):
+def verify_admin(api_key: str) -> bool:
+    """Verify admin API key"""
+    if api_key != ADMIN_API_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid admin API key"
+        )
+    return True
+
+
+def verify_user_or_admin(
+    authorization: Optional[str] = Header(None),
+    api_key: Optional[str] = Header(None)
+) -> CurrentUser:
+    """
+    Verify either user JWT or admin API key.
+    For /explain-strategy: requires user authentication
+    For /admin/*: requires admin API key
+    """
+    if api_key:
+        verify_admin(api_key)
+        return CurrentUser(
+            id="admin",
+            email="admin@system",
+            role="admin"
+        )
     
+    if authorization:
+        token = authorization.replace("Bearer ", "")
+        from shared.services.service_auth import decode_token
+        token_data = decode_token(token)
+        return CurrentUser(
+            id=token_data.user_id,
+            email=token_data.email or "",
+            role=token_data.role
+        )
+    
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Authentication required"
+    )
+
+
+@app.post("/explain-strategy", response_model=ExplainResponse)
+async def explain_strategy(
+    data: ExplainRequest,
+    user: CurrentUser = Depends(verify_user_or_admin)
+):
+    """
+    Generate AI explanation for financial strategy.
+    Requires authentication (JWT or admin API key).
+    """
+    if not user.is_active and user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User account is inactive"
+        )
+
     try:
         query = f"{data.strategy_recommendation} fire timeline debt impact"
 
@@ -60,27 +112,21 @@ async def explain_strategy(data: ExplainRequest):
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_DETAIL,
+            detail=f"Error generating explanation: {str(e)}"
+        )
 
-# -------------------------
-# 🔒 ADMIN AUTH CHECK
-# -------------------------
-
-def verify_admin(api_key: str):
-    if api_key != ADMIN_API_KEY:
-        raise HTTPException(status_code=403, detail="Unauthorized")
-
-
-# -------------------------
-# 🔒 ADMIN UPLOAD
-# -------------------------
 
 @app.post("/admin/upload")
 async def admin_upload(
     file: UploadFile = File(...),
     api_key: str = Header(...)
 ):
-
+    """
+    Admin endpoint to upload knowledge base documents.
+    Requires admin API key.
+    """
     verify_admin(api_key)
 
     file_path = os.path.join(UPLOAD_DIR, file.filename)
@@ -96,18 +142,34 @@ async def admin_upload(
     }
 
 
-# -------------------------
-# 🔒 ADMIN DELETE
-# -------------------------
-
 @app.delete("/admin/delete")
 async def admin_delete(
     source: str,
     api_key: str = Header(...)
 ):
-
+    """
+    Admin endpoint to delete knowledge base documents.
+    Requires admin API key.
+    """
     verify_admin(api_key)
 
     collection.delete(where={"source": source})
 
     return {"status": "Deleted successfully"}
+
+
+@app.get("/health")
+def health_check():
+    """Public health check endpoint"""
+    return {"status": "healthy", "service": "explain_service"}
+
+
+@app.get("/protected")
+def protected_endpoint(user: CurrentUser = Depends(verify_user_or_admin)):
+    """Test endpoint to verify authentication"""
+    return {
+        "message": "You are authenticated!",
+        "user_id": user.id,
+        "email": user.email,
+        "role": user.role
+    }

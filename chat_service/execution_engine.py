@@ -4,7 +4,7 @@ from .tool_executor import execute_tool
 
 class ExecutionEngine:
 
-    async def execute_chain(self, tools, state):
+    async def execute_chain(self, tools, state, auth_token: str = None):
 
         results = {}
 
@@ -15,7 +15,7 @@ class ExecutionEngine:
                 if v is not None
             }
 
-            result = await execute_tool(tool, payload)
+            result = await execute_tool(tool, payload, auth_token)
 
             # Use proper update method
             state.update_from_tool(tool, result)

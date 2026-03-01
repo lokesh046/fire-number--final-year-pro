@@ -19,7 +19,7 @@ class FinancialOrchestrator:
         self.guardrails = Guardrails()
         self.sanity = FinancialSanityEngine()
 
-    async def handle_request(self, message):
+    async def handle_request(self, message, auth_token: str = None):
 
         # 1️⃣ Extract financial data
         extracted_data = await self.interpreter.extract(message)
@@ -51,11 +51,12 @@ class FinancialOrchestrator:
 
         tool_results = {}
 
-        # 6️⃣ Execute Tools
+        # 6️⃣ Execute Tools (with auth token)
         if tools_to_run:
             state, tool_results = await self.executor.execute_chain(
                 tools_to_run,
-                state
+                state,
+                auth_token
             )
 
         # 7️⃣ Explanation
